@@ -24,6 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
     //客户端绑定
     connect(ui->connectButton,&QPushButton::clicked,
             this,&MainWindow::onConnectClicked);
+
+    connect(ui->sendButton,&QPushButton::clicked,
+            this,&MainWindow::onSendClicked);
 }
 
 MainWindow::~MainWindow()
@@ -75,5 +78,15 @@ void MainWindow::onConnectClicked()
 
     clientSocket->connectToHost(ip,port);
 
+}
 
+void MainWindow::onSendClicked()
+{
+    QString message = ui->messageLineEdit->text();
+    if(message.isEmpty())return;
+
+    clientSocket->write(message.toUtf8());
+
+    ui->clientLogTextEdit->append("已发送：" + message);
+    ui->messageLineEdit->clear();
 }

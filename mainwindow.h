@@ -34,6 +34,8 @@ private slots:
     //客户端
     void onConnectClicked();
 
+    void onSendClicked();
+
 private:
     Ui::MainWindow *ui;
 
