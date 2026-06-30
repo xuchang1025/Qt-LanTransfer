@@ -1,7 +1,14 @@
 ﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+#include <QDebug>
 
 #include <QMainWindow>
+
+// QTcpServer：服务端监听类，负责监听端口，等待客户端连接
+#include <QTcpServer>
+
+// QTcpSocket：通信类，客户端和服务端真正收发数据都靠它
+#include <QTcpSocket>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -17,7 +24,22 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
+private slots:
+    // 点击“启动监听”按钮后执行
+    void onStartListenClicked();
+
+    // 有新的客户端连接进来时执行
+    void onNewConnection();
+
+    //客户端
+    void onConnectClicked();
+
 private:
     Ui::MainWindow *ui;
+
+    // 服务端对象：负责监听端口，不直接负责读写数据
+    QTcpServer *tcpServer;
+    QTcpSocket *clientSocket;
 };
+
 #endif // MAINWINDOW_H
