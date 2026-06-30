@@ -27,6 +27,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->sendButton,&QPushButton::clicked,
             this,&MainWindow::onSendClicked);
+
+    connect(clientSocket,&QTcpSocket::connected,this,[=](){
+        ui->clientLogTextEdit->append("连接成功");
+    });
+
+    connect(clientSocket,&QTcpSocket::errorOccurred,this,[=](){
+        ui->clientLogTextEdit->append("连接失败：" + clientSocket->errorString());
+    });
 }
 
 MainWindow::~MainWindow()
