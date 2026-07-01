@@ -36,12 +36,16 @@ private slots:
 
     void onSendClicked();
 
+    //新增：客户端回复
+    void onReplyClicked();
+
 private:
     Ui::MainWindow *ui;
 
     // 服务端对象：负责监听端口，不直接负责读写数据
     QTcpServer *tcpServer;
     QTcpSocket *clientSocket;
+    QTcpSocket *serverClientSocket;
 };
 
 #endif // MAINWINDOW_H

@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , tcpServer(new QTcpServer(this))
     ,clientSocket(new QTcpSocket(this))
+    ,serverClientSocket(nullptr)
 {
     ui->setupUi(this);
 
@@ -35,6 +36,17 @@ MainWindow::MainWindow(QWidget *parent)
     connect(clientSocket,&QTcpSocket::errorOccurred,this,[=](){
         ui->clientLogTextEdit->append("连接失败：" + clientSocket->errorString());
     });
+
+    connect(ui->replyButton,&QPushButton::clicked,
+            this,&MainWindow::onReplyClicked);
+
+    connect(clientSocket,&QTcpSocket::readyRead,this,[=](){
+        QByteArray data = clientSocket->readAll();
+
+        if (data.isEmpty()) return;
+        QString message = QString::fromUtf8(data);
+        ui->clientLogTextEdit->append("服务端回复" + message);
+    });
 }
 
 MainWindow::~MainWindow()
@@ -44,13 +56,24 @@ MainWindow::~MainWindow()
 
 void MainWindow::onStartListenClicked()
 {
-    quint16 port = ui->portLineEdit->text().toUShort();
+    // 新增切换端口监听（监听中）
+    if (tcpServer->isListening()) {
+        tcpServer->close();                                          // 关闭服务端
+        ui->serverLogTextEdit->append("服务端已停止监听");
+        ui->startListenButton->setText("启动监听");                   // 按钮文字改回来
+        ui->portLineEdit->setEnabled(true);                          // 允许修改端口
+        return;
+    }
 
+    // 启动监听
+    quint16 port = ui->portLineEdit->text().toUShort();
     bool success = tcpServer->listen(QHostAddress::Any, port);
 
     if (success) {
-        ui->serverLogTextEdit->append(QString("服务端已启动，正在监听端口：%1").arg(port));
-        ui->startListenButton->setEnabled(false);
+        ui->serverLogTextEdit->append(
+            QString("服务端已启动，正在监听端口：%1").arg(port));
+        ui->startListenButton->setText("停止监听");                   // 按钮文字改成"停止"
+        ui->portLineEdit->setEnabled(false);                         // 禁止修改端口
     } else {
         ui->serverLogTextEdit->append("服务端启动失败：" + tcpServer->errorString());
     }
@@ -58,20 +81,21 @@ void MainWindow::onStartListenClicked()
 
 void MainWindow::onNewConnection()
 {
-    QTcpSocket *clientSocket = tcpServer->nextPendingConnection();
+    serverClientSocket = tcpServer->nextPendingConnection();
 
     ui->serverLogTextEdit->append("有新的客户端连接进来");
 
-    connect(clientSocket, &QTcpSocket::readyRead, this, [=]() {
-        QByteArray data = clientSocket->readAll();
+    connect(serverClientSocket, &QTcpSocket::readyRead, this, [=]() {
+        QByteArray data = serverClientSocket->readAll();
         QString message = QString::fromUtf8(data);
 
+        if (data.isEmpty()) return;
         ui->serverLogTextEdit->append("收到消息：" + message);
     });
 
-    connect(clientSocket, &QTcpSocket::disconnected, this, [=]() {
+    connect(serverClientSocket, &QTcpSocket::disconnected, this, [=]() {
         ui->serverLogTextEdit->append("客户端已断开连接");
-        clientSocket->deleteLater();
+        serverClientSocket->deleteLater();
     });
 }
 
@@ -97,4 +121,15 @@ void MainWindow::onSendClicked()
 
     ui->clientLogTextEdit->append("已发送：" + message);
     ui->messageLineEdit->clear();
+}
+
+void MainWindow::onReplyClicked()
+{
+    QString message = ui->replyLineEdit->text();
+    if(message.isEmpty())return;
+
+    serverClientSocket->write(message.toUtf8());
+
+    ui->serverLogTextEdit->append("已回复：" + message);
+    ui->replyLineEdit->clear();
 }
