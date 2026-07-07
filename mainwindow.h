@@ -1,7 +1,7 @@
 ﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QDebug>
-
+#include <QFileDialog>
 #include <QMainWindow>
 
 // QTcpServer：服务端监听类，负责监听端口，等待客户端连接
@@ -39,6 +39,11 @@ private slots:
     //新增：客户端回复
     void onReplyClicked();
 
+    //新增：文件传输
+    void onSelectFileClicked();
+
+    void onSendFileClicked();
+
 private:
     Ui::MainWindow *ui;
 
@@ -46,6 +51,10 @@ private:
     QTcpServer *tcpServer;
     QTcpSocket *clientSocket;
     QTcpSocket *serverClientSocket;
+
+    //文件
+    QString selectedFilePath;
+
 };
 
 #endif // MAINWINDOW_H
