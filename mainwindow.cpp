@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -13,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     ,serverClientSocket(nullptr)
 {
     ui->setupUi(this);
-
+    initDatabase();
     ui->portLineEdit->setText("8888");
     ui->serverLogTextEdit->setReadOnly(true);
 
@@ -114,6 +115,7 @@ void MainWindow::onNewConnection()
                 if (file.open(QIODevice::WriteOnly)) {
                     file.write(fileBuffer);
                     file.close();
+                    logFile("client", fileName, fileSize);
                     ui->serverLogTextEdit->append(
                         QString("文件接收完成：%1 (%2 字节)").arg(fileName).arg(fileSize));
                 }
@@ -142,6 +144,7 @@ void MainWindow::onNewConnection()
                 }
             } else {
                 // 普通文本消息
+                logMessage("client", text);
                 ui->serverLogTextEdit->append("收到消息：" + text);
             }
         }
@@ -183,7 +186,7 @@ void MainWindow::onReplyClicked()
     if(message.isEmpty())return;
 
     serverClientSocket->write(message.toUtf8());
-
+    logMessage("client", message);
     ui->serverLogTextEdit->append("已回复：" + message);
     ui->replyLineEdit->clear();
 }
@@ -223,6 +226,63 @@ void MainWindow::onSendFileClicked()
     // 发送文件数据
     clientSocket->write(fileData);
 
+    logFile("client", fileName, fileSize);
+
     ui->clientLogTextEdit->append(
         QString("已发送文件：%1 (%2 字节)").arg(fileName).arg(fileSize));
 }
+
+
+void MainWindow::initDatabase()
+{
+    //创建sqlite数据库连接 并保存在程序目录下的transfer.db
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("transfer.db");
+
+    if(!db.open()){
+        ui->serverLogTextEdit->append("数据库打开失败：" + db.lastError().text());
+        return;
+    }
+
+    //创建传输记录表（首次）
+    QSqlQuery query;
+    query.exec(
+        "CREATE TABLE IF NOT EXISTS transfer_log ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "type TEXT NOT NULL,"          // 'message' 或 'file'
+        "sender TEXT NOT NULL,"        // 'client' 或 'server'
+        "content TEXT,"                // 文本内容或文件名
+        "file_size INTEGER,"           // 文件大小，文本消息为 NULL
+        "time DATETIME DEFAULT CURRENT_TIMESTAMP"
+        ")"
+        );
+    ui->serverLogTextEdit->append("数据库初始化完成");
+}
+
+void MainWindow::logMessage(const QString &sender,const QString &content)
+{
+    QSqlQuery query;
+    query.prepare("INSERT INTO transfer_log (type,sender,content) VALUES ('message',?,?)");
+    query.addBindValue(sender);
+    query.addBindValue(content);
+    query.exec();
+}
+
+void MainWindow::logFile(const QString &sender,const QString &fileName,qint64 fileSize)
+{
+    QSqlQuery query;
+    query.prepare("INSERT INTO transfer_log (type, sender, content, file_size) VALUES ('file', ?, ?, ?)");
+    query.addBindValue(sender);
+    query.addBindValue(fileName);
+    query.addBindValue(fileSize);
+    query.exec();
+}
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,7 @@
 QT += core gui widgets network
 
+QT += core gui widgets network sql
+
 CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.
