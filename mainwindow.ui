@@ -17,8 +17,8 @@
    <widget class="QPushButton" name="startListenButton">
     <property name="geometry">
      <rect>
-      <x>250</x>
-      <y>190</y>
+      <x>180</x>
+      <y>10</y>
       <width>75</width>
       <height>23</height>
      </rect>
@@ -30,8 +30,8 @@
    <widget class="QLineEdit" name="portLineEdit">
     <property name="geometry">
      <rect>
-      <x>230</x>
-      <y>160</y>
+      <x>60</x>
+      <y>10</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -43,10 +43,10 @@
    <widget class="QTextEdit" name="serverLogTextEdit">
     <property name="geometry">
      <rect>
-      <x>240</x>
-      <y>220</y>
-      <width>104</width>
-      <height>71</height>
+      <x>60</x>
+      <y>40</y>
+      <width>191</width>
+      <height>221</height>
      </rect>
     </property>
     <property name="readOnly">
@@ -66,8 +66,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QLineEdit" name="serverIpLineEdit">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>160</y>
+      <x>370</x>
+      <y>10</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -79,8 +79,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QLineEdit" name="ServerPortLineEdit">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>190</y>
+      <x>490</x>
+      <y>10</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -92,8 +92,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QPushButton" name="connectButton">
     <property name="geometry">
      <rect>
-      <x>500</x>
-      <y>220</y>
+      <x>610</x>
+      <y>10</y>
       <width>75</width>
       <height>23</height>
      </rect>
@@ -105,10 +105,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QTextEdit" name="clientLogTextEdit">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>250</y>
-      <width>104</width>
-      <height>71</height>
+      <x>370</x>
+      <y>40</y>
+      <width>211</width>
+      <height>221</height>
      </rect>
     </property>
     <property name="readOnly">
@@ -128,8 +128,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QLineEdit" name="messageLineEdit">
     <property name="geometry">
      <rect>
-      <x>480</x>
-      <y>330</y>
+      <x>370</x>
+      <y>270</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -138,8 +138,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QPushButton" name="sendButton">
     <property name="geometry">
      <rect>
-      <x>500</x>
-      <y>350</y>
+      <x>490</x>
+      <y>270</y>
       <width>75</width>
       <height>23</height>
      </rect>
@@ -151,8 +151,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QPushButton" name="replyButton">
     <property name="geometry">
      <rect>
-      <x>250</x>
-      <y>350</y>
+      <x>180</x>
+      <y>270</y>
       <width>75</width>
       <height>23</height>
      </rect>
@@ -164,8 +164,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QLineEdit" name="replyLineEdit">
     <property name="geometry">
      <rect>
-      <x>230</x>
-      <y>310</y>
+      <x>60</x>
+      <y>270</y>
       <width>113</width>
       <height>21</height>
      </rect>
@@ -174,8 +174,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QPushButton" name="selectFileButton">
     <property name="geometry">
      <rect>
-      <x>520</x>
-      <y>390</y>
+      <x>500</x>
+      <y>320</y>
       <width>75</width>
       <height>23</height>
      </rect>
@@ -187,9 +187,9 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QLabel" name="filePathLabel">
     <property name="geometry">
      <rect>
-      <x>450</x>
-      <y>390</y>
-      <width>53</width>
+      <x>370</x>
+      <y>300</y>
+      <width>111</width>
       <height>20</height>
      </rect>
     </property>
@@ -200,14 +200,40 @@ li.checked::marker { content: &quot;\2612&quot;; }
    <widget class="QPushButton" name="sendFileButton">
     <property name="geometry">
      <rect>
-      <x>600</x>
-      <y>390</y>
+      <x>590</x>
+      <y>320</y>
       <width>75</width>
       <height>23</height>
      </rect>
     </property>
     <property name="text">
      <string>发送文件</string>
+    </property>
+   </widget>
+   <widget class="QProgressBar" name="sendProgressBar">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>320</y>
+      <width>118</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="value">
+     <number>0</number>
+    </property>
+   </widget>
+   <widget class="QProgressBar" name="receiveProgressBar">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>300</y>
+      <width>118</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="value">
+     <number>0</number>
     </property>
    </widget>
   </widget>

@@ -1,11 +1,13 @@
 ﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+#include <QWidget>
 #include <QDebug>
 #include <QFileDialog>
 #include <QMainWindow>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
+
 
 // QTcpServer：服务端监听类，负责监听端口，等待客户端连接
 #include <QTcpServer>
@@ -61,6 +63,9 @@ private:
     void logMessage(const QString &sender, const QString &content);  // 记录文本消息
     void logFile(const QString &sender, const QString &fileName, qint64 fileSize); // 记录文件传输
 
+    //进度条
+    qint64 totalSendBytes;    // 总共要发多少字节（进度条用）
+    qint64 sentBytes;         // 已经发了多少字节
 
 };
 

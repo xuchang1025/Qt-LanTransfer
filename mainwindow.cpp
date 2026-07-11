@@ -93,59 +93,120 @@ void MainWindow::onStartListenClicked()
 void MainWindow::onNewConnection()
 {
     serverClientSocket = tcpServer->nextPendingConnection();
-
     ui->serverLogTextEdit->append("有新的客户端连接进来");
 
-    bool receivingFile = false;    // 判断是否正在接收文件
-    QString fileName;              // 当前接收的文件名
-    qint64 fileSize = 0;           // 当前接收的文件大小
-    QByteArray fileBuffer;         // 文件数据缓冲区
+    // ---- 文件接收相关 ----
+    QString fileName;
+    qint64 fileSize = 0;
+    int totalChunks = 0;
+    int receivedChunks = 0;
+    QByteArray fileBuffer;
+
+    // ---- 数据缓冲区 ----
+    QByteArray buffer;       // 累积所有收到的原始数据
+
+    // ---- 状态 ----
+    bool waitingForFile = false;  // true = 正在接收文件
 
     connect(serverClientSocket, &QTcpSocket::readyRead, this, [=]() mutable {
-        QByteArray data = serverClientSocket->readAll();
-        if (data.isEmpty()) return;
+        // ① 把新数据追加到缓冲区
+        buffer.append(serverClientSocket->readAll());
 
-        if (receivingFile) {
-            // 状态：正在接收文件数据
-            fileBuffer.append(data);
+        // ② 循环解析缓冲区
+        while (!buffer.isEmpty()) {
 
-            if (fileBuffer.size() >= fileSize) {
-                // 文件接收完毕，保存到磁盘
-                QFile file(fileName);
-                if (file.open(QIODevice::WriteOnly)) {
-                    file.write(fileBuffer);
-                    file.close();
+            if (waitingForFile) {
+                // ===== 文件模式：找 CHUNK: =====
+                if (!buffer.startsWith("CHUNK:")) {
+                    break;  // 数据不完整，等下次
+                }
+
+                int newlinePos = buffer.indexOf('\n');
+                if (newlinePos == -1) break;  // \n 还没到，等下次
+
+                // 解析分片序号
+                int chunkIndex = buffer.mid(6, newlinePos - 6).toInt();
+
+                // 计算这一片数据有多少字节
+                // 除了最后一片，其他都是 64KB
+                qint64 chunkDataSize = qMin(qint64(64 * 1024), fileSize - fileBuffer.size());
+
+                // 检查缓冲区里的数据够不够
+                int dataStart = newlinePos + 1;
+                if (buffer.size() - dataStart < chunkDataSize) {
+                    break;  // 数据还没到齐，等下次
+                }
+
+                // 取出这一片的数据，追加到文件缓冲区
+                fileBuffer.append(buffer.mid(dataStart, chunkDataSize));
+
+                // 从 buffer 中移除已处理的部分
+                buffer.remove(0, dataStart + chunkDataSize);
+
+                receivedChunks++;
+                ui->receiveProgressBar->setValue(receivedChunks);
+
+                if (receivedChunks >= totalChunks) {
+                    // 接收完毕
+                    QFile file(fileName);
+                    if (file.open(QIODevice::WriteOnly)) {
+                        file.write(fileBuffer);
+                        file.close();
+                        ui->serverLogTextEdit->append(
+                            QString("文件接收完成：%1 (%2 字节)").arg(fileName).arg(fileSize));
+                    }
                     logFile("client", fileName, fileSize);
-                    ui->serverLogTextEdit->append(
-                        QString("文件接收完成：%1 (%2 字节)").arg(fileName).arg(fileSize));
-                }
-                // 接收完成，重置接收判断以及文件缓冲区
-                receivingFile = false;
-                fileBuffer.clear();
-            }
-        } else {
-            // 状态：先看是不是文件头部
-            QString text = QString::fromUtf8(data);
-            if (text.startsWith("FILE:")) {
-                // 解析文件头部：FILE:文件名:大小
-                QStringList parts = text.mid(5).split(":");
-                fileName = parts[0];                    // 文件名
-                fileSize = parts[1].toLongLong();       // 文件大小
-                receivingFile = true;
-                fileBuffer.clear();
 
-                ui->serverLogTextEdit->append(
-                    QString("正在接收文件：%1 (%2 字节)").arg(fileName).arg(fileSize));
-
-                // 头部后面的数据（如果有）就是文件内容，存入缓冲区
-                int headerEnd = text.indexOf('\n') + 1;
-                if (headerEnd < data.size()) {
-                    fileBuffer.append(data.mid(headerEnd));
+                    waitingForFile = false;
+                    fileBuffer.clear();
                 }
+
             } else {
-                // 普通文本消息
-                logMessage("client", text);
-                ui->serverLogTextEdit->append("收到消息：" + text);
+                // ===== 普通模式：找 FILE: 或文本 =====
+                if (buffer.startsWith("FILE:")) {
+                    int newlinePos = buffer.indexOf('\n');
+                    if (newlinePos == -1) break;
+
+                    // 解析头部
+                    QByteArray headerBytes = buffer.mid(5, newlinePos - 5);
+                    QString header = QString::fromUtf8(headerBytes);
+                    QStringList parts = header.split(":");
+                    fileName = parts[0];
+                    fileSize = parts[1].toLongLong();
+                    totalChunks = parts[2].toInt();
+
+                    buffer.remove(0, newlinePos + 1);  // 移除头部
+
+                    waitingForFile = true;
+                    receivedChunks = 0;
+                    fileBuffer.clear();
+
+                    ui->receiveProgressBar->setMaximum(totalChunks);
+                    ui->receiveProgressBar->setValue(0);
+
+                    ui->serverLogTextEdit->append(
+                        QString("正在接收文件：%1 (%2 字节, %3 片)")
+                            .arg(fileName).arg(fileSize).arg(totalChunks));
+
+                } else {
+                    // 普通文本：取到 \n 为止，或者全部取走
+                    int newlinePos = buffer.indexOf('\n');
+                    if (newlinePos == -1) {
+                        // 没有 \n，全部当一条消息
+                        QString text = QString::fromUtf8(buffer);
+                        ui->serverLogTextEdit->append("收到消息：" + text);
+                        logMessage("client", text);
+                        buffer.clear();
+                    } else {
+                        QByteArray line = buffer.left(newlinePos);
+                        buffer.remove(0, newlinePos + 1);
+                        QString text = QString::fromUtf8(line);
+                        if (!text.isEmpty()) {
+                            ui->serverLogTextEdit->append("收到消息：" + text);
+                            logMessage("client", text);
+                        }
+                    }
+                }
             }
         }
     });
@@ -219,17 +280,39 @@ void MainWindow::onSendFileClicked()
     QString fileName = QFileInfo(selectedFilePath).fileName();  // 文件名（不含路径）
     qint64 fileSize = fileData.size();                          // 文件大小
 
-    // 发送文件头部：FILE:文件名:大小\n
-    QString header = QString("FILE:%1:%2\n").arg(fileName).arg(fileSize);
+    const qint64 chunkSize = 64 * 1024;                         //规定每片64kb
+    int totalChunks = (fileSize + chunkSize - 1)/ chunkSize;    //切片数量 向上取整
+
+
+    //1.发送文件头部：FILE:文件名:大小:总片数
+    QString header = QString("FILE:%1:%2:%3\n").arg(fileName).arg(fileSize).arg(totalChunks);
     clientSocket->write(header.toUtf8());
 
-    // 发送文件数据
-    clientSocket->write(fileData);
+    //2.逐片发送
+    ui->sendProgressBar->setMaximum(totalChunks);
+    ui->sendProgressBar->setValue(0);
 
-    logFile("client", fileName, fileSize);
+    for(int i = 0; i < totalChunks;i++){
+        //切出当前切片
+        QByteArray chunk = fileData.mid(i*chunkSize,chunkSize);
 
-    ui->clientLogTextEdit->append(
-        QString("已发送文件：%1 (%2 字节)").arg(fileName).arg(fileSize));
+        //发送分片头部
+        QString chunkHeader = QString("CHUNK:%1\n").arg(i);
+        clientSocket->write(chunkHeader.toUtf8());
+
+        //发送分片数据
+        clientSocket->write(chunk);
+
+        //更新进度条
+        ui->sendProgressBar->setValue(i+1);
+
+    }
+
+    ui->clientLogTextEdit->append(QString("已发送文件%1（%2字节，%3片）").arg(fileName).arg(fileSize).arg(totalChunks));
+
+    //数据库接受
+    logFile("client",fileName,fileSize);
+
 }
 
 
@@ -272,10 +355,11 @@ void MainWindow::logFile(const QString &sender,const QString &fileName,qint64 fi
 {
     QSqlQuery query;
     query.prepare("INSERT INTO transfer_log (type, sender, content, file_size) VALUES ('file', ?, ?, ?)");
-    query.addBindValue(sender);
-    query.addBindValue(fileName);
-    query.addBindValue(fileSize);
-    query.exec();
+                                    //信息插入日志 分别为类型 发送者 内容 文件大小 初始为 类型：文件
+    query.addBindValue(sender);     //添加发送者
+    query.addBindValue(fileName);   //..
+    query.addBindValue(fileSize);   //..
+    query.exec();                   //执行sql
 }
 
 
