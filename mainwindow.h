@@ -63,9 +63,23 @@ private:
     void logMessage(const QString &sender, const QString &content);  // 记录文本消息
     void logFile(const QString &sender, const QString &fileName, qint64 fileSize); // 记录文件传输
 
-    //进度条
-    qint64 totalSendBytes;    // 总共要发多少字节（进度条用）
-    qint64 sentBytes;         // 已经发了多少字节
+    //文件接收状态（服务区）
+    QByteArray recvBuffer;          // TCP 接收缓冲区
+    bool waitingForFile = false;    // 是否正在接收文件
+    QString recvFileName;
+    qint64 recvFileSize = 0;        //接收文件大小
+    int recvTotalChunks = 0;        //被接收文件切片数量
+    int recvReceivedChunks = 0;
+    QByteArray recvFileBuffer;      // 文件数据缓冲区
+
+    //协议解析（服务区）
+    void processBuffer();           // 循环解析 recvBuffer
+    bool handleFileHeader();        // 处理 FILE: 头部
+    bool handleChunk();             // 处理 CHUNK: 分片
+    void handleTextMessage();       // 处理文本消息
+
+
+
 
 };
 
