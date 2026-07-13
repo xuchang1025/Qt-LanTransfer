@@ -7,13 +7,13 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QSqlTableModel>
+#include <QTableView>
 
-
-// QTcpServer：服务端监听类，负责监听端口，等待客户端连接
 #include <QTcpServer>
-
-// QTcpSocket：通信类，客户端和服务端真正收发数据都靠它
 #include <QTcpSocket>
+
+class FileSender;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -30,57 +30,56 @@ public:
     ~MainWindow() override;
 
 private slots:
-    // 点击“启动监听”按钮后执行
-    void onStartListenClicked();
-
-    // 有新的客户端连接进来时执行
-    void onNewConnection();
-
-    //客户端
-    void onConnectClicked();
-
-    void onSendClicked();
-
-    //新增：客户端回复
-    void onReplyClicked();
-
-    //新增：文件传输
-    void onSelectFileClicked();
-
-    void onSendFileClicked();
+    void onStartListenClicked();    // 启动/停止服务端监听
+    void onNewConnection();         // 新客户端连接到来时调用
+    void onConnectClicked();        // 客户端连接服务端
+    void onSendClicked();           // 发送文本消息
+    void onReplyClicked();          // 服务端回复消息
+    void onSelectFileClicked();     // 选择要发送的文件
+    void onSendFileClicked();       // 发送文件
+    void onClearHistoryClicked();   // 清除传输记录
 
 private:
     Ui::MainWindow *ui;
 
-    // 服务端对象：负责监听端口，不直接负责读写数据
-    QTcpServer *tcpServer;
-    QTcpSocket *clientSocket;
-    QTcpSocket *serverClientSocket;
+    // ==== 网络连接 ====
+    QTcpServer *tcpServer;           // 服务端监听器
+    QTcpSocket *clientSocket;        // 客户端使用的 socket
+    QTcpSocket *serverClientSocket;    // 服务端与客户端的通信 socket
 
-    //文件
-    QString selectedFilePath;
-    void initDatabase();           // 初始化数据库和表
+    QString selectedFilePath;        // 当前选择的文件路径
+
+    // ==== 数据库 ====
+    void initDatabase();             // 初始化数据库
     void logMessage(const QString &sender, const QString &content);  // 记录文本消息
-    void logFile(const QString &sender, const QString &fileName, qint64 fileSize); // 记录文件传输
+    void logFile(const QString &sender, const QString &fileName, qint64 fileSize);  // 记录文件传输
 
-    //文件接收状态（服务区）
-    QByteArray recvBuffer;          // TCP 接收缓冲区
-    bool waitingForFile = false;    // 是否正在接收文件
-    QString recvFileName;
-    qint64 recvFileSize = 0;        //接收文件大小
-    int recvTotalChunks = 0;        //被接收文件切片数量
-    int recvReceivedChunks = 0;
-    QByteArray recvFileBuffer;      // 文件数据缓冲区
+    // ==== 传输历史（Model/View 架构） ====
+    QSqlTableModel *logModel;        // 模型：映射数据库表到 UI
+    QTableView *logTableView;        // 视图：显示传输历史表格
+    void setupTransferHistory();     // 设置表格视图
+    void refreshLogTable();          // 刷新表格数据
 
-    //协议解析（服务区）
-    void processBuffer();           // 循环解析 recvBuffer
-    bool handleFileHeader();        // 处理 FILE: 头部
-    bool handleChunk();             // 处理 CHUNK: 分片
-    void handleTextMessage();       // 处理文本消息
+    // ==== 多线程文件发送 ====
+    FileSender *fileSender;          // 文件发送器工作对象
 
+    // ==== 界面美化 ====
+    void setupStyle();               // 应用 QSS 样式表
 
+    // ==== 文件接收状态（服务端） ====
+    QByteArray recvBuffer;           // 接收缓冲区
+    bool waitingForFile = false;     // 是否正在等待文件
+    QString recvFileName;            // 接收的文件名
+    qint64 recvFileSize = 0;         // 接收的文件大小
+    int recvTotalChunks = 0;         // 文件总片数
+    int recvReceivedChunks = 0;      // 已接收片数
+    QByteArray recvFileBuffer;       // 文件数据缓冲区
 
-
-};
+    // ==== 协议解析（服务端） ====
+    void processBuffer();            // 处理接收缓冲区
+    bool handleFileHeader();         // 处理文件头部信息
+    bool handleChunk();              // 处理文件数据片
+    void handleTextMessage();        // 处理文本消息
+    };
 
 #endif // MAINWINDOW_H
