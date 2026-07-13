@@ -6,11 +6,11 @@
 
 ### 当前版本
 
-<img src="C:\Users\11362\Desktop\运行截图（新）.png" alt="运行截图（新）" style="zoom:75%;" />
+![Current Version](screenshots_new.png)
 
 ### 初版对比
 
-![运行截图（旧）](C:\Users\11362\Desktop\运行截图（旧）.png)
+![First Version](screenshots_old.png)
 
 ---
 
@@ -44,8 +44,8 @@ Qt-LanTransfer/
 ├── mainwindow.ui         # Qt Designer 界面文件
 ├── filesender.h / .cpp   # 多线程文件发送器
 ├── transfer.db           # SQLite 数据库（运行时自动生成）
-├── screenshots_new.png    # 运行截图（最新）
-├── screenshots_old.png    # 运行截图（初版）
+├── screenshots_new.png   # 运行截图（最新）
+├── screenshots_old.png   # 运行截图（初版）
 └── Qt-LanTransfer.pro    # qmake 项目文件
 ```
 
