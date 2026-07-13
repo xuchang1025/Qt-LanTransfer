@@ -6,13 +6,11 @@
 
 ### 当前版本
 
-<img src="C:\Users\11362\Desktop\运行截图（新）.png" alt="运行截图（新）" style="zoom:75%;" />
+<img src="./images/screenshots_new.png" alt="新版截图" style="zoom:75%;" />
 
 ### 初版对比
 
-![运行截图（旧）](C:\Users\11362\Desktop\运行截图（旧）.png)
-
----
+![旧版截图](./images/screenshots_old.png)
 
 ## 功能
 
