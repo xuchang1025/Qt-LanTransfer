@@ -32,3 +32,6 @@ qrc_*.cpp
 # OS
 .DS_Store
 Thumbs.db
+# Qt Creator 索引缓存
+.qtc_clangd/
+.cache/
