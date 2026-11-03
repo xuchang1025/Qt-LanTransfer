@@ -12,6 +12,7 @@
 
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QFile>
 
 class FileSender;
 
@@ -67,13 +68,14 @@ private:
     void setupStyle();               // 应用 QSS 样式表
 
     // ==== 文件接收状态（服务端） ====
-    QByteArray recvBuffer;           // 接收缓冲区
+    QByteArray recvBuffer;           // TCP 接收缓冲区（原始字节流，用于协议解析）
+    QFile recvFile;                  // 接收时直接落盘的文件句柄
+    qint64 recvReceivedBytes = 0;    // 已接收字节数
     bool waitingForFile = false;     // 是否正在等待文件
     QString recvFileName;            // 接收的文件名
     qint64 recvFileSize = 0;         // 接收的文件大小
     int recvTotalChunks = 0;         // 文件总片数
     int recvReceivedChunks = 0;      // 已接收片数
-    QByteArray recvFileBuffer;       // 文件数据缓冲区
 
     // ==== 协议解析（服务端） ====
     void processBuffer();            // 处理接收缓冲区

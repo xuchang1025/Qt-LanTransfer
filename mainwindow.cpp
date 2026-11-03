@@ -6,6 +6,7 @@
 #include <QMessageBox>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
 #include <QHeaderView>
 
 
@@ -254,6 +255,14 @@ void MainWindow::onNewConnection()
 
     connect(serverClientSocket, &QTcpSocket::disconnected, this, [=]() {
         ui->serverLogTextEdit->append("客户端已断开连接");
+        // 传输中途断线：把已收到的部分落盘，避免文件句柄泄漏
+        if (recvFile.isOpen()) {
+            recvFile.close();
+            waitingForFile = false;
+            ui->serverLogTextEdit->append(
+                QString("传输中断，已保留不完整数据（%1 / %2 字节）")
+                    .arg(recvReceivedBytes).arg(recvFileSize));
+        }
         serverClientSocket->deleteLater();
     });
 }
@@ -285,7 +294,17 @@ bool MainWindow::handleFileHeader()
     recvBuffer.remove(0, newlinePos + 1);
     waitingForFile = true;
     recvReceivedChunks = 0;
-    recvFileBuffer.clear();
+    if (recvFile.isOpen()) recvFile.close();
+    // 落到独立目录 received/，避免与源文件同名互相覆盖
+    QDir().mkpath("received");
+    const QString savePath = QDir("received").filePath(QFileInfo(recvFileName).fileName());
+    recvFile.setFileName(savePath);
+    if (!recvFile.open(QIODevice::WriteOnly)) {
+        ui->serverLogTextEdit->append("无法创建文件：" + savePath);
+        waitingForFile = false;
+        return true;        // 头已经吃掉了，让外层继续解析
+    }
+    recvReceivedBytes = 0;
 
     ui->receiveProgressBar->setMaximum(recvTotalChunks);
     ui->receiveProgressBar->setValue(0);
@@ -302,28 +321,24 @@ bool MainWindow::handleChunk()
     int newlinePos = recvBuffer.indexOf('\n');
     if (newlinePos == -1) return false;
 
-    qint64 chunkSize = qMin(qint64(64 * 1024), recvFileSize - recvFileBuffer.size());
+    qint64 chunkSize = qMin(qint64(64 * 1024), recvFileSize - recvReceivedBytes);
     int dataStart = newlinePos + 1;
     if (recvBuffer.size() - dataStart < chunkSize) return false;
 
-    recvFileBuffer.append(recvBuffer.mid(dataStart, chunkSize));
+    recvFile.write(recvBuffer.constData() + dataStart, chunkSize);   // 直接落盘
+    recvReceivedBytes += chunkSize;
     recvBuffer.remove(0, dataStart + chunkSize);
 
     recvReceivedChunks++;
     ui->receiveProgressBar->setValue(recvReceivedChunks);
 
     if (recvReceivedChunks >= recvTotalChunks) {
-        QFile file(recvFileName);
-        if (file.open(QIODevice::WriteOnly)) {
-            file.write(recvFileBuffer);
-            file.close();
-        }
+        recvFile.close();   // 关闭句柄 = 数据已全部落盘
         ui->serverLogTextEdit->append(
             QString("文件接收完成：%1 (%2 字节)").arg(recvFileName).arg(recvFileSize));
         logFile("client", recvFileName, recvFileSize);
         refreshLogTable();  // 刷新传输记录表格
         waitingForFile = false;
-        recvFileBuffer.clear();
     }
     return true;
 }

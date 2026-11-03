@@ -32,6 +32,11 @@ qrc_*.cpp
 # OS
 .DS_Store
 Thumbs.db
+
+# 接收目录与本地测试文件（大文件不入库）
+received/
+test_*.bin
+
 # Qt Creator 索引缓存
 .qtc_clangd/
 .cache/
