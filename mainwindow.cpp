@@ -58,6 +58,10 @@ MainWindow::MainWindow(QWidget *parent)
         ui->clientLogTextEdit->append("服务端回复" + message);
     });
 
+    connect(clientSocket, &QTcpSocket::bytesWritten, this, [this](qint64) {
+        tryReleaseSlot();
+    });
+
     connect(ui->selectFileButton, &QPushButton::clicked,
             this, &MainWindow::onSelectFileClicked);
 
@@ -395,7 +399,7 @@ void MainWindow::onSendFileClicked()
     ui->clientLogTextEdit->append("正在准备发送文件...");
 
     // 创建 FileSender 工作对象（自动在子线程中运行）
-    fileSender = new FileSender(this);
+    fileSender = new FileSender();
 
     // ---- 连接信号：头部信息 → 主线程写 socket ----
     connect(fileSender, &FileSender::headerReady, this,
@@ -410,10 +414,14 @@ void MainWindow::onSendFileClicked()
     // ---- 连接信号：每片数据 → 主线程写 socket ----
     connect(fileSender, &FileSender::chunkReady, this,
             [this](int index, const QByteArray &chunkData) {
-        QString chunkHeader = QString("CHUNK:%1\n").arg(index);
-        clientSocket->write(chunkHeader.toUtf8());
-        clientSocket->write(chunkData);
-    });
+                QString chunkHeader = QString("CHUNK:%1\n").arg(index);
+                clientSocket->write(chunkHeader.toUtf8());
+                clientSocket->write(chunkData);
+
+                ++m_owedSlots;        // 先记一笔：欠子线程一个车位
+                tryReleaseSlot();     // 攒得住就立刻还；攒不住就等 bytesWritten
+            });
+
 
     // ---- 连接信号：进度更新 → 更新进度条 ----
     connect(fileSender, &FileSender::progressUpdated, this,
@@ -522,4 +530,18 @@ void MainWindow::logFile(const QString &sender, const QString &fileName, qint64 
     query.addBindValue(fileName);
     query.addBindValue(fileSize);
     query.exec();
+}
+
+void MainWindow::tryReleaseSlot()
+{
+    if (!fileSender || !clientSocket)
+        return;
+
+    qDebug() << "水位" << clientSocket->bytesToWrite() / 1024 << "KB  欠" << m_owedSlots;
+    const int WATERMARK = 256 * 1024;   // 积压低于 256KB 才还车位
+
+    while (m_owedSlots > 0 && clientSocket->bytesToWrite() < WATERMARK) {
+        --m_owedSlots;
+        fileSender->releaseSlot();
+    }
 }

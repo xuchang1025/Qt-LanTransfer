@@ -3,6 +3,8 @@
 #include <QFileInfo>
 #include <QDebug>
 
+
+
 FileSender::FileSender(QObject *parent)
     : QObject(parent)
 {
@@ -13,6 +15,8 @@ FileSender::FileSender(QObject *parent)
     connect(&m_workerThread, &QThread::finished, this, &QObject::deleteLater);
 
     m_workerThread.start();
+
+    m_freeSlots.release(4);
 }
 
 FileSender::~FileSender()
@@ -38,22 +42,32 @@ void FileSender::doSend(const QString &filePath)
         return;
     }
 
-    QByteArray fileData = file.readAll();
-    file.close();
+    // 用 size() 预知文件大小，不把内容读进内存
+    // 原实现用 readAll()，内存占用 = 文件大小，传 1GB 直接 OOM
+    const qint64 fileSize = file.size();
+    const int chunkSize = 64 * 1024;
+    const int totalChunks = int((fileSize + chunkSize - 1) / chunkSize);
 
-    QString fileName = QFileInfo(filePath).fileName();
-    qint64 fileSize = fileData.size();
-    const qint64 chunkSize = 64 * 1024;
-    int totalChunks = (fileSize + chunkSize - 1) / chunkSize;
+    if (fileSize == 0) {
+        emit errorOccurred("文件为空，未发送：" + filePath);
+        return;
+    }
+
+    const QString fileName = QFileInfo(filePath).fileName();
 
     // 1. 通知主线程发送 FILE: 头部
     emit headerReady(fileName, fileSize, totalChunks);
 
-    // 2. 逐片读取，通过信号发给主线程
-    for (int i = 0; i < totalChunks; i++) {
-        QByteArray chunk = fileData.mid(i * chunkSize, chunkSize);
-        emit chunkReady(i, chunk);
-        emit progressUpdated(i + 1, totalChunks);
+    // 2. 流式读取：一次只驻留 64KB，内存占用与文件大小无关
+    int index = 0;
+    while (!file.atEnd()) {
+        m_freeSlots.acquire();
+        QByteArray chunk = file.read(chunkSize);
+        if (chunk.isEmpty())
+            break;
+        emit chunkReady(index, chunk);
+        ++index;
+        emit progressUpdated(index, totalChunks);
     }
 
     // 3. 完成

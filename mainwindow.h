@@ -61,7 +61,7 @@ private:
     void refreshLogTable();          // 刷新表格数据
 
     // ==== 多线程文件发送 ====
-    FileSender *fileSender;          // 文件发送器工作对象
+    FileSender *fileSender = nullptr;          // 文件发送器工作对象
 
     // ==== 界面美化 ====
     void setupStyle();               // 应用 QSS 样式表
@@ -80,6 +80,9 @@ private:
     bool handleFileHeader();         // 处理文件头部信息
     bool handleChunk();              // 处理文件数据片
     void handleTextMessage();        // 处理文本消息
+
+    int m_owedSlots = 0;          // 欠了子线程几个车位
+    void tryReleaseSlot();        //归还
     };
 
 #endif // MAINWINDOW_H

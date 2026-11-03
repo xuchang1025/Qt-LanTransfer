@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QByteArray>
 #include <QString>
+#include <QSemaphore>
 
 // ===== 文件发送工作类 =====
 // 负责在子线程中读取文件、切片，通过信号把数据传给主线程
@@ -18,6 +19,7 @@ public:
 
     // 主线程调用：启动文件发送（内部通过信号槽触发子线程执行）
     void start(const QString &filePath);
+    void releaseSlot(){ m_freeSlots.release(1); }
 
 signals:
     // 发送给主线程：FILE: 头部信息（主线程负责写 socket）
@@ -37,6 +39,8 @@ private slots:
 
 private:
     QThread m_workerThread;
+    QSemaphore m_freeSlots;
+
 };
 
 #endif // FILESENDER_H
